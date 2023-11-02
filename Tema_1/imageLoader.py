@@ -18,7 +18,7 @@ class ImageLoader:
 
     def __get_labels(self) -> None:
         with gzip.open(self.labels_path, 'rb') as f:
-            self.labels = np.frombuffer(f.read(), np.uint8, offset=8)
+            self.labels = np.frombuffer(f.read(), np.int8, offset=8)
         self.labels = self.labels.reshape(-1, 1)
 
     def show_images(self, lower_bound: int, upper_bound: int) -> None:
