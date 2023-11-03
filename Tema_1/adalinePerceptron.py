@@ -2,23 +2,17 @@ import concurrent.futures
 
 import numpy as np
 
+from dataUnit import DataUnit
+
 
 class Perceptron:
 
-    def __init__(self, train_data: np.ndarray = None, train_labels: np.array(np.int8) = None,
-                 expected_output: np.uint = None, weights=None,
-                 bias=None):
+    def __init__(self, train_data: list[DataUnit], expected_output):
+        self.train_data = self.normalize_data(train_data)
+        self.expected_output = expected_output
 
-        if train_data is not None:
-            self.train_data = self.normalize_data(train_data)
-            self.expected_output = expected_output
-            self.train_labels = self.normalize_labels(train_labels)
-            self.weights = np.random.rand(np.shape(train_data)[1], 1)
-            self.bias = np.random.rand(1, 1)
-        else:
-            self.weights = weights
-            self.bias = bias
-            self.expected_output = expected_output
+        self.weights = np.random.rand(np.shape(train_data[0].pixelValues)[0], 1)
+        self.bias = np.random.rand(1, 1)
 
     @staticmethod
     def normalize_data(train_data: np.ndarray) -> np.ndarray:
@@ -42,7 +36,7 @@ class Perceptron:
         return normalized_labels
 
     def train(self):
-        batch_size = 500
+        batch_size = 300
         epoch = 1
         epsilon = 0.01
         while True:
@@ -54,15 +48,15 @@ class Perceptron:
                 (to_update_weights, to_update_bias) = self.__train_batch(self.train_data[i:i + batch_size],
                                                                          self.train_labels[i:i + batch_size],
                                                                          learning_rate)
-                self.weights = self.weights + to_update_weights
-                self.bias = self.bias + to_update_bias
+                self.weights = self.weights + to_update_weights / batch_size
+                self.bias = self.bias + to_update_bias / batch_size
 
             epoch += 1
 
     def __train_batch(self, train_data: np.ndarray, train_labels: np.array(np.int8), learning_rate) -> (
             np.ndarray, np.ndarray):
 
-        mini_batch_size = 25
+        mini_batch_size = 15
         (train_data, train_labels) = self.shuffle_data(train_data, train_labels)
 
         to_update_weights = np.zeros(self.weights.shape)

@@ -2,6 +2,8 @@ import gzip
 import numpy as np
 import matplotlib.pyplot as plt
 
+from dataUnit import DataUnit
+
 
 class ImageLoader:
     def __init__(self, images_path, labels_path):
@@ -11,10 +13,18 @@ class ImageLoader:
         self.__get_images()
         self.__get_labels()
 
+    def get_data_unit_list(self):
+        data_unit_list = []
+        for (pixelValues, label) in zip(self.data, self.labels):
+            pixelValues = pixelValues.reshape(1, 784)
+            label = label.reshape(1, 1)
+            data_unit_list.append(DataUnit(pixelValues, label))
+        return data_unit_list
+
     def __get_images(self) -> None:
         with gzip.open(self.images_path, 'rb') as f:
-            self.data = np.frombuffer(f.read(), np.uint8, offset=16)
-        self.data = self.data.reshape(-1, 784)
+            data = np.frombuffer(f.read(), np.uint8, offset=16)
+        self.data = data.reshape(-1, 784)
 
     def __get_labels(self) -> None:
         with gzip.open(self.labels_path, 'rb') as f:
