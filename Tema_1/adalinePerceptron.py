@@ -1,89 +1,99 @@
 import concurrent.futures
+import os
 
 import numpy as np
+
+import copy
 
 from dataUnit import DataUnit
 
 
 class Perceptron:
+    # parameters
+    batchSize = 300
+    miniBatchSize = np.uint8(batchSize / os.cpu_count())
+    startingLearningRate = 0.3
 
-    def __init__(self, train_data: list[DataUnit], expected_output):
-        self.train_data = self.normalize_data(train_data)
-        self.expected_output = expected_output
+    def __init__(self, trainData: np.array(DataUnit), expectedOutput):
+        self.expectedOutput = expectedOutput
+        # Create a deep copy of trainData
+        self.trainData = copy.deepcopy(trainData)
 
-        self.weights = np.random.rand(np.shape(train_data[0].pixelValues)[0], 1)
+        self.weights = np.random.rand(trainData[0].pixelValues.shape[1], 1)
         self.bias = np.random.rand(1, 1)
 
-    @staticmethod
-    def normalize_data(train_data: np.ndarray) -> np.ndarray:
-        normalized_data = np.ndarray(train_data.shape)
+        self.learningRate = self.startingLearningRate
+        self.epoch = 0
 
-        for i in range(train_data.shape[0]):
-            normalized_data[i] = train_data[i] / 255
+    def Train(self):
+        self.__normalize_data()
+        np.random.shuffle(self.trainData)
 
-        return normalized_data
-
-    def normalize_labels(self, train_labels: np.ndarray) -> np.ndarray:
-
-        normalized_labels = np.ndarray(train_labels.shape)
-
-        for i in range(train_labels.shape[0]):
-            if train_labels[i] != self.expected_output:
-                normalized_labels[i] = -1
-            else:
-                normalized_labels[i] = 1
-
-        return normalized_labels
-
-    def train(self):
-        batch_size = 300
-        epoch = 1
-        epsilon = 0.01
         while True:
-            learning_rate = self.get_learning_rate_for_this_epoch(epoch)
-            if learning_rate < epsilon or epoch > 20:
+            for batchNumber in range(0, self.trainData.shape[0], self.batchSize):
+                (rawWeightsUpdateVector, rawBiasUpdateValue) = self.__train_batch(batchNumber)
+
+                self.weights = self.weights + (rawWeightsUpdateVector / self.batchSize)
+                self.bias = self.bias + (rawBiasUpdateValue / self.batchSize)
+
+            if self.__isBreakingConditionTriggered():
                 break
-            (self.train_data, self.train_labels) = self.shuffle_data(self.train_data, self.train_labels)
-            for i in range(0, self.train_data.shape[0], batch_size):
-                (to_update_weights, to_update_bias) = self.__train_batch(self.train_data[i:i + batch_size],
-                                                                         self.train_labels[i:i + batch_size],
-                                                                         learning_rate)
-                self.weights = self.weights + to_update_weights / batch_size
-                self.bias = self.bias + to_update_bias / batch_size
 
-            epoch += 1
+    def __isBreakingConditionTriggered(self):
+        if self.__get_accuracy() > 0.85:
+            return True
+        else:
+            return False
 
-    def __train_batch(self, train_data: np.ndarray, train_labels: np.array(np.int8), learning_rate) -> (
-            np.ndarray, np.ndarray):
+    def __get_accuracy(self):
+        self.epoch += 1
+        correct_predictions = 0
+        for dataUnit in self.trainData:
+            prediction = self.GetPerception(dataUnit.pixelValues)
+            if prediction[0] is True and dataUnit.label == 1:
+                correct_predictions += 1
+            elif prediction[0] is False and dataUnit.label == -1:
+                correct_predictions += 1
 
-        mini_batch_size = 15
-        (train_data, train_labels) = self.shuffle_data(train_data, train_labels)
+        accuracy = correct_predictions / self.trainData.shape[0]
+
+        print(f'Perceptron {self.expectedOutput} epoch {self.epoch} accuracy: {accuracy}\n')
+
+        return accuracy
+
+    def __normalize_data(self):
+        for i in range(self.trainData.shape[0]):
+            # self.trainData[i].pixelValues = self.trainData[i].pixelValues / 255
+            self.trainData[i].label = 1 if self.trainData[i].label == self.expectedOutput else -1
+
+    def __train_batch(self, batchNumber: int) -> (
+            np.ndarray, np.float32):
+
+        batchData = self.trainData[batchNumber:batchNumber + self.batchSize]
 
         to_update_weights = np.zeros(self.weights.shape)
         to_update_bias = 0
 
         # Split the data into mini-batches
-        mini_batches = [(train_data[i:i + mini_batch_size], train_labels[i:i + mini_batch_size])
-                        for i in range(0, train_data.shape[0], mini_batch_size)]
+        mini_batches = [(batchData[k:k + self.miniBatchSize])
+                        for k in range(0, self.batchSize, self.miniBatchSize)]
 
         # Function to process a mini-batch
-        def process_mini_batch(mini_batch):
-            mini_data, mini_labels = mini_batch
+        def processMiniBatch(mini_batch):
             __mini_weights = np.zeros(self.weights.shape)
             __mini_bias = 0
 
-            for i in range(mini_data.shape[0]):
-                (weights_modification, biases_modification) = self.__train_with_one(
-                    mini_data[i].reshape(1, np.shape(mini_data)[1]), mini_labels[i], learning_rate)
-
-                __mini_weights += weights_modification
-                __mini_bias += biases_modification
+            for i in range(mini_batch.shape[0]):
+                (weightsModification, biasModification) = self.__train_with_one(mini_batch[i].pixelValues,
+                                                                                mini_batch[i].label)
+                __mini_weights += weightsModification
+                __mini_bias += biasModification
 
             return __mini_weights, __mini_bias
 
         # Use concurrent.futures to run mini-batches in parallel
         with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
-            results = list(executor.map(process_mini_batch, mini_batches))
+            results = list(executor.map(processMiniBatch, mini_batches))
 
         # Combine the results
         for mini_weights, mini_bias in results:
@@ -92,61 +102,32 @@ class Perceptron:
 
         return to_update_weights, to_update_bias
 
-    def __train_with_one(self, train_data: np.ndarray, train_label: np.int8, learning_rate) -> (np.ndarray, np.float32):
+    def __train_with_one(self, trainData: np.ndarray, trainLabel: np.short) -> (np.ndarray, np.float32):
 
-        neuron_value = (np.dot(train_data, self.weights) * train_label + self.bias) * train_label
-        print(f'Neuron value: {neuron_value} of Perceptron {self.expected_output} and train label: {train_label}')
+        weightsModification = np.zeros(self.weights.shape)
+        biasModification = 0
 
-        weights_modification = np.zeros(self.weights.shape)
-        bias_modification = 0
+        raw_neuron_value = np.dot(trainData, self.weights) * trainLabel + self.bias
+        if raw_neuron_value * trainLabel > 0:
+            if trainLabel > 0:
+                weightsModification = self.weights * (self.expectedOutput / raw_neuron_value - 1)
+                biasModification = self.bias * (self.expectedOutput / raw_neuron_value - 1)
+            else:
+                weightsModification = - self.weights * (1 / raw_neuron_value + 1)
+                biasModification = - self.bias * (1 / raw_neuron_value + 1)
+        elif raw_neuron_value * trainLabel < 0:
+            weightsModification = -raw_neuron_value * self.learningRate
+            biasModification = -raw_neuron_value * self.learningRate
 
-        if neuron_value > 0:
-            error = train_label - neuron_value
-            with open(f'errors_{self.expected_output}.txt', 'a') as file:
-                file.write(f'Error: {error}  LearningRate = {learning_rate}\n')
+        return weightsModification, biasModification
 
-            weights_modification = (train_data * learning_rate * error).reshape(self.weights.shape)
-            bias_modification = learning_rate * error
+    def GetPerception(self, data: np.ndarray):
 
-        return weights_modification, bias_modification
-
-    def get_perception(self, data: np.ndarray):
         neuron_value = np.dot(data, self.weights) + self.bias
-        probability = self.stable_sigmoid(neuron_value)
-
-        print(f'Probability: {probability} of Perceptron {self.expected_output} and neuron value: {neuron_value}')
-
-        return_value = -1
-        if probability > 0.75:
-            return_value = self.expected_output
-
-        return return_value, probability
+        if neuron_value > 0:
+            return True, abs(neuron_value-self.expectedOutput)
+        else:
+            return False, neuron_value
 
     def save_model(self, path):
-        np.savez(path, weights=self.weights, bias=self.bias, expected_output=self.expected_output)
-
-    @staticmethod
-    def load_model(path):
-        model = np.load(path)
-        return Perceptron(weights=model['weights'], bias=model['bias'], expected_output=model['expected_output'])
-
-    @staticmethod
-    def stable_sigmoid(x):
-        if x >= 0:
-            return 1 / (1 + np.exp(-x))
-        else:
-            return np.exp(x) / (1 + np.exp(x))
-
-    @staticmethod
-    def get_learning_rate_for_this_epoch(epoch):
-        initial_lr = 0.5
-        k = 0.1  # Adjust this value for the desired rate of decay
-        return initial_lr * 1 / (1 + np.exp(k * epoch))
-
-    @staticmethod
-    def shuffle_data(data: np.ndarray, labels: np.array(np.int8)):
-        combined_data = np.concatenate((data, labels.reshape(-1, 1)), axis=1)
-        np.random.shuffle(combined_data)
-        data = combined_data[:, :-1]
-        labels = combined_data[:, -1].astype(np.int8)
-        return data, labels
+        np.savez(path, weights=self.weights, bias=self.bias, expected_output=self.expectedOutput)

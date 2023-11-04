@@ -6,28 +6,30 @@ from dataUnit import DataUnit
 
 
 class ImageLoader:
-    def __init__(self, images_path, labels_path):
-        self.images_path = images_path
-        self.labels_path = labels_path
+    def __init__(self, imageSetPath, labelSetPath):
+        self.imageSetPath = imageSetPath
+        self.labelSetPath = labelSetPath
 
         self.__get_images()
         self.__get_labels()
 
-    def get_data_unit_list(self):
-        data_unit_list = []
+    def getDataUnitList(self):
+        dataUnitList = []
+
         for (pixelValues, label) in zip(self.data, self.labels):
             pixelValues = pixelValues.reshape(1, 784)
             label = label.reshape(1, 1)
-            data_unit_list.append(DataUnit(pixelValues, label))
-        return data_unit_list
+            dataUnitList.append(DataUnit(pixelValues, label))
+
+        return np.array(dataUnitList)
 
     def __get_images(self) -> None:
-        with gzip.open(self.images_path, 'rb') as f:
+        with gzip.open(self.imageSetPath, 'rb') as f:
             data = np.frombuffer(f.read(), np.uint8, offset=16)
         self.data = data.reshape(-1, 784)
 
     def __get_labels(self) -> None:
-        with gzip.open(self.labels_path, 'rb') as f:
+        with gzip.open(self.labelSetPath, 'rb') as f:
             self.labels = np.frombuffer(f.read(), np.int8, offset=8)
         self.labels = self.labels.reshape(-1, 1)
 
@@ -41,3 +43,6 @@ class ImageLoader:
             plt.title(f'Label: {label}')
             plt.show()
             i += 1
+
+    def getNumberOfImagesOf(self, i):
+        return np.count_nonzero(self.labels == i)
