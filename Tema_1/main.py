@@ -1,9 +1,11 @@
+import copy
+
 import numpy as np
 
 import adalineLoadingPerceptron
 import concurrent.futures
 import imageLoader as imgLoader
-import adalinePerceptron as PerceptronModel
+import adalinePerceptron as p
 
 train_images_path = 'dataset/train-images-idx3-ubyte.gz'
 train_labels_path = 'dataset/train-labels-idx1-ubyte.gz'
@@ -17,10 +19,10 @@ if __name__ == '__main__':
     trainingData = trainingImagesLoader.getDataUnitList()
 
     perceptronList = []
-
+    trustFactors = dict()
 
     # def train_perceptron(i):
-    #     perceptron = PerceptronModel.Perceptron(trainingData, np.uint(i))
+    #     perceptron = p.Perceptron(trainingData, np.uint(i))
     #     perceptron.Train()
     #     perceptron.save_model(f'models/perceptron_{i}.json')
     #     print(f'Perceptron {i} trained')
@@ -28,22 +30,34 @@ if __name__ == '__main__':
     # with concurrent.futures.ThreadPoolExecutor() as executor:
     #     executor.map(train_perceptron, perceptronList)
 
-    for i in range(0, 10):
+    def load_perceptron(i):
         perceptron = adalineLoadingPerceptron.AdalineLoadingPerceptron(f'models/perceptron_{i}.json.npz')
+        trustFactors[i] = perceptron.GetAccuracy(trainingData)
         perceptronList.append(perceptron)
 
+
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        executor.map(load_perceptron, range(0, 10))
+
     testImages = imgLoader.ImageLoader(test_images_path, test_labels_path)
-    print(f'Test images: {testImages.data.shape[0]}')
     correct_predictions = 0
     for (data, label) in zip(testImages.data, testImages.labels):
         prediction = -1
-        prediction_disorder = 100000
-
+        trust = 0
+        distance = 0
+        totalValue = 0
+        perceptronCounter = 0
         for perceptron in perceptronList:
-            perception = perceptron.GetPerception(data)
-            if perception[0] and abs(1-perception[1]) <= prediction_disorder:
-                prediction = perceptron.expectedOutput
-                prediction_disorder = abs(1-perception[1])
+            answer = perceptron.GetPerception(data)
+            if answer[0] is True:
+                perceptronCounter += 1
+                totalValue += answer[1]
+                perceptronLabel = int(perceptron.expectedOutput)
+                perceptronTrust = trustFactors[perceptronLabel]
+                if perceptronTrust > trust:
+                    trust = perceptronTrust
+                    prediction = perceptron.expectedOutput
+                    distance = answer[1]
 
         if prediction == label:
             correct_predictions += 1
