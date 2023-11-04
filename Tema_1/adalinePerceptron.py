@@ -12,7 +12,7 @@ class Perceptron:
     # parameters
     batchSize = 300
     miniBatchSize = np.uint8(batchSize / os.cpu_count())
-    startingLearningRate = 0.3
+    startingLearningRate = 0.02
 
     def __init__(self, trainData: np.array(DataUnit), expectedOutput):
         self.expectedOutput = expectedOutput
@@ -20,6 +20,7 @@ class Perceptron:
         self.trainData = copy.deepcopy(trainData)
 
         self.weights = np.random.rand(trainData[0].pixelValues.shape[1], 1)
+
         self.bias = np.random.rand(1, 1)
 
         self.learningRate = self.startingLearningRate
@@ -33,8 +34,8 @@ class Perceptron:
             for batchNumber in range(0, self.trainData.shape[0], self.batchSize):
                 (rawWeightsUpdateVector, rawBiasUpdateValue) = self.__train_batch(batchNumber)
 
-                self.weights = self.weights + (rawWeightsUpdateVector / self.batchSize)
-                self.bias = self.bias + (rawBiasUpdateValue / self.batchSize)
+                self.weights = self.weights + rawWeightsUpdateVector / self.batchSize
+                self.bias = self.bias + rawBiasUpdateValue / self.batchSize
 
             if self.__isBreakingConditionTriggered():
                 break
@@ -54,6 +55,7 @@ class Perceptron:
                 correct_predictions += 1
             elif prediction[0] is False and dataUnit.label == -1:
                 correct_predictions += 1
+            # print(f'Prediction: {prediction[1]}')
 
         accuracy = correct_predictions / self.trainData.shape[0]
 
@@ -63,7 +65,7 @@ class Perceptron:
 
     def __normalize_data(self):
         for i in range(self.trainData.shape[0]):
-            # self.trainData[i].pixelValues = self.trainData[i].pixelValues / 255
+            self.trainData[i].pixelValues = self.trainData[i].pixelValues / 255
             self.trainData[i].label = 1 if self.trainData[i].label == self.expectedOutput else -1
 
     def __train_batch(self, batchNumber: int) -> (
@@ -107,27 +109,24 @@ class Perceptron:
         weightsModification = np.zeros(self.weights.shape)
         biasModification = 0
 
-        raw_neuron_value = np.dot(trainData, self.weights) * trainLabel + self.bias
-        if raw_neuron_value * trainLabel > 0:
-            if trainLabel > 0:
-                weightsModification = self.weights * (self.expectedOutput / raw_neuron_value - 1)
-                biasModification = self.bias * (self.expectedOutput / raw_neuron_value - 1)
-            else:
-                weightsModification = - self.weights * (1 / raw_neuron_value + 1)
-                biasModification = - self.bias * (1 / raw_neuron_value + 1)
-        elif raw_neuron_value * trainLabel < 0:
-            weightsModification = -raw_neuron_value * self.learningRate
-            biasModification = -raw_neuron_value * self.learningRate
-
+        raw_neuron_value = self.GetRawNeuronValue(trainData)
+        error = self.expectedOutput - raw_neuron_value
+        # print (f'Error: {error}')
+        weightsModification = self.learningRate * trainData.reshape(784, 1) * error
+        biasModification = self.learningRate * error
         return weightsModification, biasModification
 
     def GetPerception(self, data: np.ndarray):
 
-        neuron_value = np.dot(data, self.weights) + self.bias
-        if neuron_value > 0:
-            return True, abs(neuron_value-self.expectedOutput)
+        raw_neuron_value = self.GetRawNeuronValue(data)
+        if raw_neuron_value >= 0:
+            return True, raw_neuron_value
         else:
-            return False, neuron_value
+            return False, raw_neuron_value
 
     def save_model(self, path):
         np.savez(path, weights=self.weights, bias=self.bias, expected_output=self.expectedOutput)
+
+    def GetRawNeuronValue(self, data: np.ndarray):
+        neuron_value = np.dot(data, self.weights) + self.bias
+        return neuron_value
