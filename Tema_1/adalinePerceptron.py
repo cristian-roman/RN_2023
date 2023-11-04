@@ -10,9 +10,10 @@ from dataUnit import DataUnit
 
 class Perceptron:
     # parameters
-    batchSize = 300
+    batchSize = 200
     miniBatchSize = np.uint8(batchSize / os.cpu_count())
-    startingLearningRate = 0.02
+    startingLearningRate = 0.0001
+    accuracyEpsilon = 0.0001
 
     def __init__(self, trainData: np.array(DataUnit), expectedOutput):
         self.expectedOutput = expectedOutput
@@ -22,6 +23,7 @@ class Perceptron:
         self.weights = np.random.rand(trainData[0].pixelValues.shape[1], 1)
 
         self.bias = np.random.rand(1, 1)
+        self.lastAccuracies = []
 
         self.learningRate = self.startingLearningRate
         self.epoch = 0
@@ -40,11 +42,24 @@ class Perceptron:
             if self.__isBreakingConditionTriggered():
                 break
 
+            self.learningRate = self.learningRate
+
     def __isBreakingConditionTriggered(self):
-        if self.__get_accuracy() > 0.85:
-            return True
-        else:
+        currentAccuracy = self.__get_accuracy()
+
+        if not self.lastAccuracies:
+            self.lastAccuracies.append(currentAccuracy)
             return False
+
+        meanAccuracy = np.mean(self.lastAccuracies)
+        if currentAccuracy < 0.77 or (currentAccuracy - meanAccuracy) > self.accuracyEpsilon:
+            if len(self.lastAccuracies) >= 10:
+                self.lastAccuracies[self.epoch % 10] = currentAccuracy
+            else:
+                self.lastAccuracies.append(currentAccuracy)
+            return False
+        else:
+            return True
 
     def __get_accuracy(self):
         self.epoch += 1
@@ -110,10 +125,14 @@ class Perceptron:
         biasModification = 0
 
         raw_neuron_value = self.GetRawNeuronValue(trainData)
-        error = self.expectedOutput - raw_neuron_value
-        # print (f'Error: {error}')
-        weightsModification = self.learningRate * trainData.reshape(784, 1) * error
-        biasModification = self.learningRate * error
+        if raw_neuron_value * trainLabel < 0:
+            if raw_neuron_value < 0:
+                error = self.expectedOutput - raw_neuron_value
+            else:
+                error = - raw_neuron_value
+            # print (f'Error: {error}')
+            weightsModification = self.learningRate * trainData.reshape(784, 1) * error
+            biasModification = self.learningRate * error
         return weightsModification, biasModification
 
     def GetPerception(self, data: np.ndarray):

@@ -1,5 +1,7 @@
 import numpy as np
 
+import adalineLoadingPerceptron
+import concurrent.futures
 import imageLoader as imgLoader
 import adalinePerceptron as PerceptronModel
 
@@ -16,12 +18,18 @@ if __name__ == '__main__':
 
     perceptronList = []
 
+
+    # def train_perceptron(i):
+    #     perceptron = PerceptronModel.Perceptron(trainingData, np.uint(i))
+    #     perceptron.Train()
+    #     perceptron.save_model(f'models/perceptron_{i}.json')
+    #     print(f'Perceptron {i} trained')
+    #
+    # with concurrent.futures.ThreadPoolExecutor() as executor:
+    #     executor.map(train_perceptron, perceptronList)
+
     for i in range(0, 10):
-        perceptron = PerceptronModel.Perceptron(trainingData, np.uint(i))
-        perceptron.Train()
-        perceptron.save_model(f'models/perceptron_{i}.json')
-        print(f'Perceptron {i} trained')
-        print()
+        perceptron = adalineLoadingPerceptron.AdalineLoadingPerceptron(f'models/perceptron_{i}.json.npz')
         perceptronList.append(perceptron)
 
     testImages = imgLoader.ImageLoader(test_images_path, test_labels_path)
@@ -33,9 +41,9 @@ if __name__ == '__main__':
 
         for perceptron in perceptronList:
             perception = perceptron.GetPerception(data)
-            if perception[0] and perception[1] < prediction_disorder:
+            if perception[0] and abs(1-perception[1]) <= prediction_disorder:
                 prediction = perceptron.expectedOutput
-                prediction_disorder = perception[1]
+                prediction_disorder = abs(1-perception[1])
 
         if prediction == label:
             correct_predictions += 1
