@@ -27,8 +27,10 @@ if __name__ == '__main__':
     #     perceptron.save_model(f'models/perceptron_{i}.json')
     #     print(f'Perceptron {i} trained')
     #
-    # with concurrent.futures.ThreadPoolExecutor() as executor:
-    #     executor.map(train_perceptron, perceptronList)
+    # # with concurrent.futures.ThreadPoolExecutor() as executor:
+    # #     executor.map(train_perceptron, perceptronList)
+    #
+    # train_perceptron(8)
 
     def load_perceptron(i):
         perceptron = adalineLoadingPerceptron.AdalineLoadingPerceptron(f'models/perceptron_{i}.json.npz')
