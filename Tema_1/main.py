@@ -21,20 +21,18 @@ if __name__ == '__main__':
     perceptronList = []
     trustFactors = dict()
 
+
     # def train_perceptron(i):
     #     perceptron = p.Perceptron(trainingData, np.uint(i))
     #     perceptron.Train()
     #     perceptron.save_model(f'models/perceptron_{i}.json')
     #     print(f'Perceptron {i} trained')
     #
-    # # with concurrent.futures.ThreadPoolExecutor() as executor:
-    # #     executor.map(train_perceptron, perceptronList)
-    #
-    # train_perceptron(8)
+    # with concurrent.futures.ThreadPoolExecutor() as executor:
+    #     executor.map(train_perceptron, [8])
 
     def load_perceptron(i):
         perceptron = adalineLoadingPerceptron.AdalineLoadingPerceptron(f'models/perceptron_{i}.json.npz')
-        trustFactors[i] = perceptron.GetAccuracy(trainingData)
         perceptronList.append(perceptron)
 
 
@@ -43,25 +41,39 @@ if __name__ == '__main__':
 
     testImages = imgLoader.ImageLoader(test_images_path, test_labels_path)
     correct_predictions = 0
+
+    totalTrustFactor = 0
+    for perceptron in perceptronList:
+        accuracy = perceptron.GetAccuracy(trainingData)
+        trustFactors[int(perceptron.expectedOutput)] = accuracy
+        totalTrustFactor += accuracy
+    meanTrustFactor = totalTrustFactor / len(perceptronList)
+
+    cnt = 0
     for (data, label) in zip(testImages.data, testImages.labels):
-        prediction = -1
-        trust = 0
-        distance = 0
-        totalValue = 0
-        perceptronCounter = 0
+        guess = []
+        totalGuess = 0
         for perceptron in perceptronList:
             answer = perceptron.GetPerception(data)
             if answer[0] is True:
-                perceptronCounter += 1
-                totalValue += answer[1]
-                perceptronLabel = int(perceptron.expectedOutput)
-                perceptronTrust = trustFactors[perceptronLabel]
-                if perceptronTrust > trust:
-                    trust = perceptronTrust
-                    prediction = perceptron.expectedOutput
-                    distance = answer[1]
+                guess.append((perceptron.expectedOutput, answer[1]))
+                totalGuess += answer[1]
 
-        if prediction == label:
+        if len(guess) == 0:
+            cnt += 1
+            continue
+
+        maxTrustLevel = -1
+        finalGuess = -1
+        for (guessLabel, guessValue) in guess:
+            guessPercentage = (guessValue / totalGuess)
+            trustLevel = trustFactors[int(guessLabel)] * guessPercentage
+            if trustLevel > maxTrustLevel:
+                maxTrustLevel = trustLevel
+                finalGuess = guessLabel
+
+        if finalGuess == label:
             correct_predictions += 1
 
+    print(cnt)
     print(f'Accuracy: {correct_predictions / testImages.data.shape[0]}')

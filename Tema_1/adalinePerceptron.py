@@ -52,11 +52,12 @@ class Perceptron:
             return False
 
         meanAccuracy = np.mean(self.lastAccuracies)
-        if currentAccuracy < 0.77 or (currentAccuracy - meanAccuracy) > self.accuracyEpsilon:
-            if len(self.lastAccuracies) >= 3:
-                self.lastAccuracies[self.epoch % 3] = currentAccuracy
-            else:
-                self.lastAccuracies.append(currentAccuracy)
+        # if currentAccuracy < 0.7 or (currentAccuracy - meanAccuracy) > self.accuracyEpsilon:
+        if currentAccuracy < 0.7:
+            # if len(self.lastAccuracies) >= 3:
+            #     self.lastAccuracies[self.epoch % 3] = currentAccuracy
+            # else:
+            #     self.lastAccuracies.append(currentAccuracy)
             return False
         else:
             return True

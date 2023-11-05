@@ -39,6 +39,6 @@ class AdalineLoadingPerceptron:
 
         accuracy = correct_predictions / trainData.shape[0]
 
-        print(f'Perceptron {self.expectedOutput}  accuracy: {accuracy}\n')
+        # print(f'Perceptron {self.expectedOutput}  accuracy: {accuracy}\n')
 
         return accuracy
