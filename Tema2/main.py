@@ -25,7 +25,7 @@ def main():
     for epoch in range(1000):
         for batch in train_loader:
             inputs, labels = batch
-            inputs, labels = inputs.to(device), labels.to(device)  # Move inputs and labels to the specified device
+            inputs, labels = inputs.to(device), labels.to(device)
             optimizer.zero_grad()
             outputs = model(inputs)
             loss = criterion(outputs, labels)
@@ -40,7 +40,7 @@ def main():
     with torch.no_grad():
         for batch in test_loader:
             inputs, labels = batch
-            inputs, labels = inputs.to(device), labels.to(device)  # Move inputs and labels to the specified device
+            inputs, labels = inputs.to(device), labels.to(device)
             outputs = model(inputs)
             _, predicted = torch.max(outputs, dim=1)
             total_images += labels.size(0)
