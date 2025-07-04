@@ -1,4 +1,3 @@
-```
 # RN_2023 – Neural Networks & Learning Systems
 
 This repository contains coursework developed for a class focused on **Neural Networks** and **Machine Learning Fundamentals**. It spans simple learning algorithms like Perceptron and Adaline, progressing toward custom neural networks and applying them in game simulations.
@@ -83,5 +82,3 @@ This repository is ideal for students learning:
 - Fundamentals of neural network training
 - Practical implementation of basic models
 - Transition from theory to real-world application
-
-```
